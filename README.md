@@ -164,3 +164,224 @@ Popular tools and libraries:
 - *Quantitative Trading* — Ernest Chan
 - *Active Portfolio Management* — Grinold & Kahn
 - *Inside the Black Box* — Rishi Narang
+
+---
+
+# Value at Risk (VaR) Explained
+
+## What Is VaR?
+
+**Value at Risk (VaR)** is a statistical measure that quantifies the **maximum expected loss** of a portfolio over a given time horizon, at a specified confidence level, under normal market conditions.
+
+> **Plain English**: "With 95% confidence, we will not lose more than $1 million in a single day."
+
+VaR answers the question: *How bad can things get, most of the time?*
+
+---
+
+## The Three Parameters of VaR
+
+Every VaR figure requires three inputs:
+
+| Parameter | Description | Example |
+|---|---|---|
+| **Time Horizon** | The period over which loss is measured | 1 day, 10 days, 1 month |
+| **Confidence Level** | Probability that the loss will NOT exceed VaR | 95%, 99%, 99.9% |
+| **Portfolio Value** | The dollar value of positions being measured | $10,000,000 |
+
+**Example statement**: "The 1-day 99% VaR of this portfolio is $500,000."
+This means: on 99 out of 100 trading days, the loss will be less than $500,000. On approximately 1 day out of 100, it may exceed that amount.
+
+---
+
+## The Three Main Methods for Calculating VaR
+
+### Method 1: Historical Simulation (Non-Parametric)
+
+**How it works:**
+1. Collect historical returns for the portfolio (e.g., the past 500 trading days)
+2. Apply those historical return scenarios to the current portfolio
+3. Sort the resulting P&L scenarios from worst to best
+4. Read off the loss at the chosen confidence percentile
+
+**Example** (99% 1-day VaR on 500 days of data):
+- Sort 500 simulated daily P&Ls
+- The 5th worst loss (bottom 1% of 500) is the VaR
+
+```
+Daily P&L sorted (worst to best):
+  Day 1:  -$980,000   ← 1st worst (0.2%)
+  Day 2:  -$870,000   ← 2nd worst (0.4%)
+  Day 3:  -$760,000   ← 3rd worst (0.6%)
+  Day 4:  -$650,000   ← 4th worst (0.8%)
+  Day 5:  -$540,000   ← 5th worst (1.0%)  ← 99% VaR = $540,000
+  Day 6:  -$420,000
+  ...
+```
+
+**Pros:** Simple, no distributional assumptions, captures fat tails and non-linear instruments.
+**Cons:** Fully anchored to the historical window; rare events outside that window are invisible.
+
+---
+
+### Method 2: Parametric VaR (Variance-Covariance)
+
+**How it works:**
+Assumes returns are normally distributed. Uses the portfolio's mean return (μ) and standard deviation (σ) to compute VaR analytically.
+
+**Formula:**
+
+```
+VaR = Portfolio Value × (μ - z × σ)
+```
+
+Where **z** is the z-score for the chosen confidence level:
+
+| Confidence Level | z-score |
+|---|---|
+| 90% | 1.282 |
+| 95% | 1.645 |
+| 99% | 2.326 |
+| 99.9% | 3.090 |
+
+**Example:**
+- Portfolio value: $10,000,000
+- Daily mean return: 0.05%
+- Daily standard deviation: 1.2%
+- Confidence level: 99% → z = 2.326
+
+```
+VaR = $10,000,000 × (0.0005 - 2.326 × 0.012)
+    = $10,000,000 × (0.0005 - 0.02791)
+    = $10,000,000 × (-0.02741)
+    = $274,100
+```
+
+**Pros:** Fast, easy to compute and decompose. Works well for linear portfolios.
+**Cons:** Assumes normality — badly underestimates risk in fat-tailed, skewed, or non-linear portfolios (e.g., options).
+
+---
+
+### Method 3: Monte Carlo Simulation
+
+**How it works:**
+1. Model the statistical behavior of risk factors (prices, rates, volatilities)
+2. Simulate thousands (or millions) of random scenarios using those models
+3. Revalue the portfolio under each scenario
+4. Sort the resulting P&L distribution and read off the VaR percentile
+
+**Example** (simplified):
+- Simulate 100,000 random daily returns from a fitted distribution
+- Sort the simulated P&Ls
+- The 1,000th worst outcome (bottom 1%) is the 99% VaR
+
+**Pros:** Handles non-linear instruments (options, structured products), complex correlations, and non-normal distributions.
+**Cons:** Computationally expensive. Results depend heavily on the model assumptions used for simulation.
+
+---
+
+## Comparing the Three Methods
+
+| | Historical Simulation | Parametric | Monte Carlo |
+|---|---|---|---|
+| Distributional assumption | None | Normal | Model-dependent |
+| Handles options / non-linearity | Yes | Poorly | Yes |
+| Computational cost | Low | Very low | High |
+| Captures fat tails | Only if in history | No | Yes (if modeled) |
+| Transparency | High | High | Lower |
+
+---
+
+## Scaling VaR Across Time Horizons
+
+Regulatory frameworks (e.g., Basel) often require a **10-day VaR** but firms may only calculate a 1-day VaR. The square-root-of-time rule scales VaR under the normality assumption:
+
+```
+VaR(T days) = VaR(1 day) × √T
+```
+
+**Example:** 1-day 99% VaR = $500,000
+→ 10-day 99% VaR = $500,000 × √10 ≈ $1,581,139
+
+*Note: This scaling only holds if daily returns are independent and identically distributed (i.i.d.) — an assumption that often breaks down in practice.*
+
+---
+
+## VaR in Practice: Regulatory Use
+
+**Basel II / III (Banking Regulation):**
+- Banks must hold capital against market risk, calculated using a 10-day 99% VaR
+- Internal models must be backtested: if actual losses exceed VaR more than 4–5 times in 250 trading days, multipliers are applied to capital requirements
+
+**Portfolio Management:**
+- Used to set position limits and risk budgets
+- Reported daily by risk teams to senior management and boards
+
+---
+
+## Criticisms and Limitations of VaR
+
+VaR is widely used but also widely criticized:
+
+### 1. Tells You Nothing About Tail Severity
+VaR says "you will not lose more than X on 99% of days" but says **nothing** about how much you lose on the remaining 1% of days. A loss could be $X + $1 or $X + $1 billion.
+
+### 2. Assumes Normal Market Conditions
+Financial returns have **fat tails** (leptokurtosis) — extreme events happen far more often than a normal distribution predicts. Parametric VaR systematically underestimates crisis-period losses.
+
+### 3. Can Be Manipulated
+Strategies can be constructed to have low VaR while carrying enormous hidden tail risk (e.g., selling out-of-the-money options). VaR may not capture these.
+
+### 4. Not Sub-Additive
+VaR does not always satisfy the property that diversification reduces risk. In some cases, VaR(A + B) > VaR(A) + VaR(B), which is mathematically undesirable.
+
+### 5. Gives False Precision
+A single number implies a precision that is not warranted given the underlying model uncertainty.
+
+---
+
+## Beyond VaR: Related Risk Measures
+
+| Measure | Description | Addresses VaR's Gap? |
+|---|---|---|
+| **Expected Shortfall (ES) / CVaR** | Average loss in the worst (1-α)% of scenarios | Yes — captures tail severity |
+| **Stressed VaR** | VaR computed using a stressed historical period (e.g., 2008 crisis) | Partially |
+| **Maximum Drawdown** | Largest peak-to-trough loss over a period | Different dimension |
+| **Tail Risk** | Probability-weighted extreme loss scenarios | Yes |
+
+**Expected Shortfall (ES)** is now preferred by regulators (Basel III/IV uses ES at 97.5% instead of VaR at 99%) because it is coherent and captures the severity of tail losses, not just the threshold.
+
+---
+
+## Worked Example: End-to-End Historical VaR
+
+**Setup:**
+- Portfolio: $5,000,000 in a single equity
+- Historical daily returns for 252 trading days available
+
+**Step 1:** Calculate daily P&L for each historical day
+```
+Day P&L = Portfolio Value × Daily Return
+```
+
+**Step 2:** Sort 252 P&L values from worst to best
+
+**Step 3:** For 95% confidence (5th percentile):
+- 5% of 252 = 12.6, round to the 13th worst day
+- Suppose the 13th worst P&L = -$112,000
+
+**Result:** 1-day 95% VaR = **$112,000**
+
+Interpretation: On 95% of trading days historically, the portfolio did not lose more than $112,000 in a single day.
+
+---
+
+## Summary
+
+| Question | Answer |
+|---|---|
+| What does VaR measure? | Maximum expected loss at a given confidence level over a time horizon |
+| What does VaR NOT tell you? | How large losses are when they exceed VaR |
+| Best method for linear portfolios? | Parametric (fast, transparent) |
+| Best method for options/non-linear? | Monte Carlo or Historical Simulation |
+| What replaces VaR in modern regulation? | Expected Shortfall (CVaR) |
