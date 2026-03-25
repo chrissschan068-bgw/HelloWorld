@@ -385,3 +385,217 @@ Interpretation: On 95% of trading days historically, the portfolio did not lose 
 | Best method for linear portfolios? | Parametric (fast, transparent) |
 | Best method for options/non-linear? | Monte Carlo or Historical Simulation |
 | What replaces VaR in modern regulation? | Expected Shortfall (CVaR) |
+
+---
+
+# Decentralized Exchanges (DEX) Explained
+
+## What Is a Decentralized Exchange?
+
+A **decentralized exchange (DEX)** is a peer-to-peer marketplace where users trade cryptocurrencies and tokens **directly with each other**, without relying on a central intermediary to hold funds, match orders, or settle trades.
+
+All core operations — custody of assets, trade execution, and settlement — are handled by **smart contracts** running on a blockchain (most commonly Ethereum and EVM-compatible chains).
+
+> **Centralized Exchange (CEX)**: You deposit funds into the exchange's custody. The exchange matches your order against another user's order in its internal database. Examples: Binance, Coinbase, Kraken.
+>
+> **Decentralized Exchange (DEX)**: Your funds stay in your own wallet at all times. Smart contracts execute trades on-chain. Examples: Uniswap, Curve, dYdX.
+
+---
+
+## How a DEX Works: The Core Mechanism
+
+### Traditional Order Book (CEX Model)
+```
+Buyer places bid → Exchange matches with seller's ask → Exchange settles internally
+```
+The exchange holds both sides' funds during the process. Settlement is off-chain in the exchange's database.
+
+### DEX Model
+```
+User signs a transaction from their wallet
+    → Smart contract executes the trade on-chain
+    → Tokens are atomically swapped between wallet addresses
+    → Settlement is final on the blockchain
+```
+No intermediary ever touches the funds. The user retains self-custody throughout.
+
+---
+
+## Types of DEX Architecture
+
+### 1. Automated Market Maker (AMM)
+
+The dominant DEX model today. Instead of matching buyers with sellers, an AMM uses a **liquidity pool** — a smart contract holding reserves of two (or more) tokens — and a **pricing formula** to determine exchange rates algorithmically.
+
+**How it works:**
+- **Liquidity Providers (LPs)** deposit pairs of tokens into the pool (e.g., ETH and USDC)
+- Traders swap against the pool rather than against other traders
+- The price adjusts automatically after every trade based on the formula
+
+**The Constant Product Formula (Uniswap v2):**
+```
+x × y = k
+```
+Where:
+- `x` = reserve of Token A
+- `y` = reserve of Token B
+- `k` = constant (invariant)
+
+When a trader buys Token A, they add Token B to the pool, reducing `x` and increasing `y`. The price of A rises as the pool is depleted of it.
+
+**Example:**
+```
+Pool: 100 ETH × 200,000 USDC = k = 20,000,000
+
+Trader buys 1 ETH by depositing USDC:
+  New ETH reserve: 100 - 1 = 99 ETH
+  New USDC reserve: 20,000,000 / 99 ≈ 202,020 USDC
+  USDC paid: 202,020 - 200,000 = 2,020 USDC
+
+Effective price: ~$2,020/ETH (vs. $2,000 before)
+```
+
+The price impact grows with the size of the trade relative to pool depth — this is called **slippage**.
+
+**AMM Examples:** Uniswap, SushiSwap, Curve (optimized for stablecoins), Balancer (multi-asset pools)
+
+---
+
+### 2. Order Book DEX
+
+Replicates the traditional limit order book model but on-chain or with an off-chain order book and on-chain settlement.
+
+- **Fully on-chain order book**: Every order placement and cancellation is a blockchain transaction. Expensive in gas costs and slow. Rarely used.
+- **Off-chain order book, on-chain settlement**: Orders are matched off-chain for efficiency; settlement (final token transfer) happens on-chain. More practical.
+
+**Examples:** dYdX (perpetuals), Serum (Solana), 0x Protocol
+
+---
+
+### 3. DEX Aggregators
+
+Do not hold liquidity themselves. Instead, they route trades across multiple DEXs to find the best price, splitting orders across pools to minimize slippage.
+
+**Examples:** 1inch, Paraswap, Cowswap
+
+---
+
+## Liquidity Providers and Fees
+
+LPs are essential to AMM-based DEXs. In exchange for supplying liquidity, they earn a share of trading fees.
+
+**Mechanics:**
+1. LP deposits tokens into a pool (e.g., $10,000 in ETH + $10,000 in USDC)
+2. LP receives **LP tokens** representing their proportional share of the pool
+3. Every trade pays a fee (e.g., 0.3% on Uniswap v2), which accrues to the pool
+4. When the LP withdraws, they redeem LP tokens for their share of the pool plus accumulated fees
+
+**Impermanent Loss (IL):**
+The main risk for LPs. When the price ratio of the two pooled assets changes, the LP ends up with less value than if they had simply held the assets outside the pool.
+
+```
+Example:
+  Deposit: 1 ETH ($2,000) + 2,000 USDC → $4,000 total
+
+  ETH price doubles to $4,000:
+    Pool rebalances: ~0.707 ETH + ~2,828 USDC → ~$5,657
+    HODL value: 1 ETH + 2,000 USDC → $6,000
+
+  Impermanent loss: $6,000 - $5,657 = $343 (5.7%)
+```
+
+IL is "impermanent" because it only locks in if the LP withdraws while prices are diverged. If prices return to the original ratio, IL disappears.
+
+---
+
+## Key DEX Concepts
+
+### Slippage
+The difference between the expected price and the executed price of a trade. Caused by:
+- Pool depth (shallow pools have higher slippage)
+- Trade size relative to pool reserves
+- Price movement between when a transaction is submitted and when it is mined
+
+Users set a **slippage tolerance** (e.g., 0.5%) to protect against worse-than-expected execution.
+
+### Price Impact
+The effect a trade has on the pool price. Larger trades cause larger price impact.
+
+### MEV (Maximal Extractable Value)
+Miners/validators and bots can reorder, insert, or censor transactions within a block to extract value. Common MEV strategies on DEXs:
+- **Sandwich attacks**: A bot detects your pending trade, frontruns it (buying before you), then backruns it (selling after you), profiting from the price movement your trade caused.
+- **Arbitrage**: Bots exploit price differences between DEXs instantly.
+
+### Gas Fees
+Every on-chain DEX transaction requires paying gas to the blockchain network. During periods of high congestion, gas costs can make small trades economically unviable.
+
+---
+
+## DEX vs. CEX Comparison
+
+| Dimension | DEX | CEX |
+|---|---|---|
+| **Custody** | Self-custody (you hold your keys) | Custodial (exchange holds funds) |
+| **KYC / AML** | Generally none | Required in most jurisdictions |
+| **Trust Required** | Trust the smart contract code | Trust the exchange operator |
+| **Counterparty Risk** | None (atomic settlement) | Exchange insolvency / hack risk |
+| **Speed** | Limited by block times (seconds to minutes) | Near-instant (off-chain matching) |
+| **Liquidity** | Generally lower | Generally higher for major pairs |
+| **Asset Coverage** | Any token with a liquidity pool | Listed tokens only |
+| **Censorship Resistance** | High — no central party can block trades | Low — accounts can be frozen |
+| **Price** | Slippage on large trades; gas costs | Tighter spreads; lower/no gas |
+
+---
+
+## Risks of Using a DEX
+
+### Smart Contract Risk
+If the smart contract has a bug or vulnerability, funds in the pool can be drained. Hacks of DEX protocols have resulted in hundreds of millions of dollars in losses.
+
+### Impermanent Loss
+LPs face potential underperformance vs. simply holding assets, especially in volatile or one-sided markets.
+
+### Front-running / MEV
+Transactions sitting in the mempool are visible to bots before being confirmed.
+
+### Low Liquidity / Slippage
+Thin pools on less popular token pairs result in very poor execution prices for anything but tiny trades.
+
+### Regulatory Uncertainty
+The legal status of DEXs and their token offerings varies by jurisdiction and is actively evolving.
+
+---
+
+## Notable DEX Protocols
+
+| Protocol | Chain | Type | Notable Feature |
+|---|---|---|---|
+| **Uniswap v3** | Ethereum + L2s | AMM | Concentrated liquidity — LPs set custom price ranges |
+| **Curve Finance** | Ethereum + multichain | AMM | Optimized for stablecoin/pegged-asset swaps (StableSwap formula) |
+| **Balancer** | Ethereum | AMM | Multi-asset pools with custom weightings |
+| **dYdX** | StarkEx / Cosmos | Order Book | Perpetual futures with leverage |
+| **GMX** | Arbitrum / Avalanche | Synthetic AMM | Perpetuals via oracle-based pricing, no order book |
+| **1inch** | Multichain | Aggregator | Routes across DEXs for best execution |
+| **Uniswap v2** | Ethereum | AMM | The foundational x×y=k constant product model |
+
+---
+
+## The Role of DEXs in DeFi
+
+DEXs are the foundational primitive of **Decentralized Finance (DeFi)**. They enable:
+- **Token launches**: New projects can create a liquidity pool without needing exchange approval
+- **Composability**: Other DeFi protocols (lending, yield farming, derivatives) integrate DEX liquidity via smart contract calls
+- **Permissionless access**: Anyone with a wallet and internet connection can trade any listed token globally, 24/7
+
+---
+
+## Summary
+
+| Question | Answer |
+|---|---|
+| What is a DEX? | A peer-to-peer exchange where smart contracts hold funds and execute trades |
+| How do AMMs price assets? | Algorithmic formula (e.g., x×y=k) using pooled liquidity |
+| Who provides liquidity? | Anyone — LPs deposit token pairs and earn trading fees |
+| Main LP risk? | Impermanent loss when pooled asset prices diverge |
+| Main trader risks? | Slippage, MEV/front-running, smart contract bugs |
+| DEX vs. CEX key difference? | Self-custody and permissionless access vs. speed and deeper liquidity |
