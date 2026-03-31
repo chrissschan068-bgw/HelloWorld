@@ -599,3 +599,207 @@ DEXs are the foundational primitive of **Decentralized Finance (DeFi)**. They en
 | Main LP risk? | Impermanent loss when pooled asset prices diverge |
 | Main trader risks? | Slippage, MEV/front-running, smart contract bugs |
 | DEX vs. CEX key difference? | Self-custody and permissionless access vs. speed and deeper liquidity |
+
+---
+
+# Open Interest on Decentralized Exchanges
+
+## What Is Open Interest?
+
+**Open Interest (OI)** is the total number (or notional value) of **outstanding derivative contracts** — futures or perpetuals — that have been opened but not yet closed, settled, or expired.
+
+It measures the **total size of active positions** in a market at any given moment.
+
+> Open Interest is **not** trading volume. Volume counts every trade executed. OI counts only positions that remain open.
+
+---
+
+## Open Interest on DEXs vs. Traditional Markets
+
+In traditional finance, OI applies to futures and options traded on regulated exchanges (CME, CBOE). On DEXs, OI is primarily relevant to **perpetual futures** (perps) — the dominant derivative product in crypto — offered by protocols like dYdX, GMX, and Hyperliquid.
+
+A **perpetual future** is a derivative contract that tracks an asset's price with no expiry date. Traders can go long or short with leverage, and positions are kept alive through a **funding rate** mechanism (longs pay shorts, or vice versa, depending on market skew).
+
+---
+
+## How Open Interest Works: Step by Step
+
+```
+State: OI = 0
+
+1. Alice opens a long position: 10 BTC perpetual
+   OI = 10 BTC
+
+2. Bob opens a short position: 5 BTC perpetual
+   OI = 15 BTC  (a new short position was opened, not offsetting Alice's long)
+
+3. Alice closes half her long: -5 BTC
+   OI = 10 BTC  (an existing position was closed)
+
+4. Carol opens a long position: 3 BTC
+   OI = 13 BTC
+```
+
+**Key rule:**
+- Opening a new position (long or short) **increases** OI
+- Closing an existing position **decreases** OI
+- Two traders exchanging an existing position with each other leaves OI **unchanged**
+
+---
+
+## Long OI vs. Short OI
+
+On a DEX perpetual platform, OI is often broken down by side:
+
+| | Long OI | Short OI |
+|---|---|---|
+| **Definition** | Total notional value of open long positions | Total notional value of open short positions |
+| **Interpretation** | Bullish exposure in the market | Bearish exposure in the market |
+
+**Total OI = Long OI + Short OI**
+
+The **OI imbalance** (long OI minus short OI) indicates whether the market is net long or net short. This directly drives the **funding rate**.
+
+---
+
+## Open Interest and the Funding Rate
+
+The funding rate is the mechanism that keeps perpetual prices anchored to the spot price. It transfers payments between longs and shorts periodically (e.g., every 8 hours).
+
+```
+Long OI > Short OI (market net long):
+  → Longs pay funding to shorts
+  → Discourages more longs, incentivizes more shorts
+  → Pulls perpetual price down toward spot
+
+Short OI > Long OI (market net short):
+  → Shorts pay funding to longs
+  → Discourages more shorts, incentivizes more longs
+  → Pushes perpetual price up toward spot
+```
+
+**Funding rate formula (simplified):**
+```
+Funding Rate = Clamp(Premium Index, -0.05%, +0.05%)
+
+Premium Index = (Perpetual Mid Price - Spot Index Price) / Spot Index Price
+```
+
+High positive OI imbalance → high positive funding rate → holding longs becomes expensive.
+
+---
+
+## How DEX Protocols Handle OI: Two Models
+
+### Model 1: Counterparty Pool (GMX, Gains Network style)
+
+A shared liquidity pool (e.g., GLP on GMX) acts as the **counterparty to all traders**.
+
+- When a trader opens a long, the pool is effectively short that exposure
+- When a trader opens a short, the pool is effectively long
+- The pool profits when traders lose and loses when traders win
+- **OI limits** are enforced to cap the pool's net directional exposure and protect LPs
+
+```
+GMX OI cap example:
+  Max long OI on BTC: $50,000,000
+  Max short OI on BTC: $50,000,000
+  If max is reached, new positions in that direction are rejected
+```
+
+**OI skew fee**: Some protocols charge a higher fee for opening positions that increase OI imbalance, and a lower fee (or rebate) for positions that reduce it.
+
+### Model 2: Peer-to-Peer Order Book (dYdX style)
+
+Longs are matched directly against shorts. OI represents the total matched open positions on both sides. The protocol does not take directional risk.
+
+---
+
+## What Open Interest Tells You
+
+### 1. Market Conviction / Commitment
+High OI means many traders have committed capital to directional bets. It signals conviction in the current trend.
+
+### 2. Liquidity and Liquidation Risk
+Large OI clusters around certain price levels create **liquidation cascades**: if price moves against a heavily crowded trade, forced liquidations push price further in that direction, triggering more liquidations.
+
+```
+Example:
+  $500M of leveraged long positions clustered with liquidation prices at $58,000 BTC.
+  If BTC drops to $58,000, those longs are force-closed (sold).
+  Selling pressure drives price further down → more liquidations trigger.
+  This is a "long squeeze" or "liquidation cascade."
+```
+
+### 3. Trend Confirmation vs. Divergence
+
+| Price Action | OI | Interpretation |
+|---|---|---|
+| Price rising + OI rising | Bullish | New money entering longs; trend likely to continue |
+| Price rising + OI falling | Weakening | Short covering (shorts closing), not new longs; trend may be fragile |
+| Price falling + OI rising | Bearish | New money entering shorts; trend likely to continue |
+| Price falling + OI falling | Weakening | Long liquidations/closures, not new shorts; potential bottom |
+
+### 4. Funding Rate Pressure
+Extreme OI skew in one direction causes funding rates to become punishing for the crowded side, incentivizing position closures and natural mean reversion.
+
+---
+
+## Open Interest vs. Volume: Key Differences
+
+| | Open Interest | Volume |
+|---|---|---|
+| **What it counts** | Currently open positions | All trades executed in a period |
+| **Time dimension** | Snapshot (point in time) | Flow (over a period) |
+| **Resets** | No — accumulates and decreases as positions open/close | Yes — resets each day/hour |
+| **What it signals** | Degree of market commitment and leverage | Degree of trading activity |
+| **Example** | $2B OI means $2B of active bets are outstanding | $500M volume means $500M was traded today |
+
+---
+
+## Open Interest in DEX Risk Management
+
+DEX protocols use OI actively as a risk management tool:
+
+| Control | Purpose |
+|---|---|
+| **Max OI caps** | Prevent the liquidity pool from taking on catastrophic directional exposure |
+| **OI-based fees** | Charge higher fees for positions that increase OI imbalance; reward positions that reduce it |
+| **Funding rate** | Automatically tax the crowded side to rebalance OI |
+| **Dynamic borrowing fees** | Some protocols (e.g., GMX v2) charge a utilization-based borrowing fee that rises as OI increases, regardless of direction |
+
+---
+
+## Worked Example: Reading OI on a DEX
+
+Suppose a BTC-USDC perpetual market on a DEX shows:
+
+```
+BTC Price:    $65,000
+Long OI:      $120,000,000   (1,846 BTC notional)
+Short OI:     $80,000,000    (1,231 BTC notional)
+Total OI:     $200,000,000
+OI Imbalance: +$40,000,000 net long
+
+Funding Rate: +0.01% per 8 hours
+  → Longs pay 0.01% every 8 hours to shorts
+  → Annualized: ~10.95% per year cost to hold a long
+```
+
+**What this tells you:**
+- The market is heavily skewed long — traders are bullish
+- Longs are paying a significant carry cost — the trade is crowded
+- If price drops, a large pool of long positions could be liquidated, amplifying the move
+
+---
+
+## Summary
+
+| Question | Answer |
+|---|---|
+| What is Open Interest? | Total notional value of all open (not yet closed) derivative positions |
+| Does OI include both longs and shorts? | Yes — Long OI + Short OI = Total OI |
+| How does OI differ from volume? | OI is a stock (outstanding positions); volume is a flow (trades executed in a period) |
+| What drives the funding rate? | OI imbalance between longs and shorts |
+| How do DEX protocols use OI? | OI caps, OI-based fees, dynamic borrowing rates to manage pool risk |
+| What is a liquidation cascade? | Clustered OI liquidations triggering a chain reaction of forced position closures |
