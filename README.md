@@ -803,3 +803,276 @@ Funding Rate: +0.01% per 8 hours
 | What drives the funding rate? | OI imbalance between longs and shorts |
 | How do DEX protocols use OI? | OI caps, OI-based fees, dynamic borrowing rates to manage pool risk |
 | What is a liquidation cascade? | Clustered OI liquidations triggering a chain reaction of forced position closures |
+
+---
+
+# OI Caps: How and When to Apply Them
+
+## What Is an OI Cap?
+
+An **OI cap** (Open Interest cap) is a hard or soft limit on the maximum total notional value of open positions — long, short, or both — that a DEX derivatives protocol will allow at any given time.
+
+When the cap is reached, the protocol **rejects new position opens** (or increases) in the capped direction until existing positions are closed and OI falls back below the limit.
+
+---
+
+## Why OI Caps Exist
+
+On AMM-style DEX perpetual protocols (e.g., GMX, Gains Network, Hyperliquid), a shared liquidity pool acts as the **counterparty to all traders**. This creates direct financial risk for the pool:
+
+```
+Trader opens a $10M long on BTC:
+  → Pool is implicitly short $10M BTC
+  → If BTC rises 10%, pool pays the trader $1M in profit
+  → Pool LPs absorb this loss
+```
+
+Without limits, a coordinated attack or highly one-sided market could cause losses that exceed the pool's collateral — making the protocol **insolvent**.
+
+OI caps are the primary mechanism to bound this risk.
+
+---
+
+## The Core Risk That Caps Protect Against
+
+### Pool Insolvency / Skew Risk
+
+The pool's net exposure is:
+
+```
+Net Pool Exposure = Long OI - Short OI
+```
+
+If Long OI >> Short OI, the pool is net short and profits if price falls, but suffers if price rises. The **maximum loss the pool can absorb** is constrained by its total assets under management (AUM).
+
+```
+Maximum tolerable net exposure ≈ f × Pool AUM
+
+Where f is a risk fraction (e.g., 0.20 = 20% of pool can be lost before insolvency)
+
+Max Net OI = f × Pool AUM
+```
+
+**Example:**
+```
+Pool AUM:           $50,000,000
+Risk fraction (f):  20%
+Max Net OI:         $10,000,000
+
+If Long OI = $30M and Short OI = $25M:
+  Net exposure = $5M  ✓ (within limit)
+
+If Long OI = $40M and Short OI = $25M:
+  Net exposure = $15M ✗ (exceeds $10M cap — block new longs)
+```
+
+---
+
+## Types of OI Caps
+
+### 1. Absolute Per-Side Cap
+A hard limit on total long OI and total short OI independently.
+
+```
+Max Long OI:  $50M per market
+Max Short OI: $50M per market
+```
+Simple to implement. Does not directly limit net exposure — both sides can be at $50M simultaneously (balanced) with no pool risk, but also allows $50M net if one side is zero.
+
+### 2. Net OI Cap (Skew Cap)
+Limits the **difference** between long and short OI rather than each side in isolation.
+
+```
+Max |Long OI - Short OI| = $10M
+```
+More precisely targets pool solvency risk. Allows arbitrarily large balanced OI (equal longs and shorts) but blocks directional skew beyond the threshold.
+
+### 3. Total OI Cap
+Limits Long OI + Short OI regardless of balance.
+
+```
+Max Total OI: $100M per market
+```
+Controls overall market size and operational risk (oracle manipulation, liquidity depth), not just directional exposure.
+
+### 4. Per-Asset / Per-Market Cap
+Separate caps for each underlying asset, scaled to the asset's liquidity and the pool's depth in that asset.
+
+```
+BTC-USDC perp:  Max Long OI = $60M,  Max Short OI = $60M
+ETH-USDC perp:  Max Long OI = $40M,  Max Short OI = $40M
+SOL-USDC perp:  Max Long OI = $10M,  Max Short OI = $10M
+```
+More illiquid assets receive lower caps because oracle manipulation is cheaper and liquidations are harder to execute cleanly.
+
+### 5. Dynamic OI Caps
+Caps that adjust automatically based on current pool conditions:
+
+```
+Max Long OI = min(Static Cap, α × Pool AUM)
+```
+
+As pool AUM grows (more LP deposits), caps expand. If pool AUM shrinks (losses, withdrawals), caps tighten automatically. This maintains a constant risk ratio without manual governance intervention.
+
+---
+
+## When to Apply OI Caps: Decision Framework
+
+### Trigger 1: Pool AUM Threshold
+
+Apply caps proportional to the pool's collateral base. A common formula:
+
+```
+Max Per-Side OI (per market) = Pool AUM × utilization_limit
+                                             (e.g., 0.5 to 1.0×)
+
+Max Net OI (per market) = Pool AUM × skew_limit
+                                      (e.g., 0.15 to 0.25×)
+```
+
+**When to tighten:** Pool AUM falls (withdrawals, losses) → reduce caps to maintain the same risk ratio.
+**When to loosen:** Pool AUM rises (new LP deposits, fee accrual) → can safely increase caps.
+
+### Trigger 2: Asset Liquidity and Oracle Risk
+
+Tighter caps are warranted for assets where:
+- **Spot market liquidity is thin** — easier for whales to manipulate spot price and trigger oracle-reported price changes that drain the pool
+- **Oracle update latency is high** — stale prices create arbitrage windows against the pool
+- **Bid-ask spreads are wide** — liquidations may not execute at fair value
+
+```
+Liquidity Score = Spot 24h Volume / Proposed Max OI
+
+Rule of thumb: Liquidity Score should be ≥ 5–10×
+  (spot volume should be 5–10× the maximum open interest)
+```
+
+If a market's spot 24h volume is $100M, capping OI at $10–20M is prudent.
+
+### Trigger 3: Concentration / Single-Position Risk
+
+Even if total OI is within limits, a single position that represents a large fraction of total OI creates risk:
+
+```
+Max Single Position Size = Min(per-trader cap, % of Max OI)
+  (e.g., no single trader can hold more than 10% of market OI)
+```
+
+Apply per-trader position limits alongside pool-level OI caps.
+
+### Trigger 4: Volatility Regime
+
+In periods of elevated volatility, the risk of large rapid losses (before liquidations can execute) increases. Protocols should tighten OI caps during high-volatility regimes:
+
+```
+Volatility-adjusted cap = Base Cap × (1 - vol_multiplier)
+
+vol_multiplier = clamp((current_IV - baseline_IV) / baseline_IV, 0, 0.5)
+```
+
+**Example:**
+```
+Base Cap:     $50M
+Baseline IV:  50%
+Current IV:   90%  → vol_multiplier = clamp(0.8, 0, 0.5) = 0.5
+Adjusted Cap: $50M × (1 - 0.5) = $25M
+```
+
+### Trigger 5: Funding Rate Extremes
+
+If the funding rate hits extreme levels (e.g., >0.1% per 8 hours) and OI continues to grow in the crowded direction, this signals market dislocation. The cap should activate to prevent further one-sided buildup even if the absolute dollar threshold has not yet been reached.
+
+---
+
+## Implementation Patterns
+
+### Hard Cap (Binary)
+```
+if new_position_size + current_long_OI > MAX_LONG_OI:
+    revert("Long OI cap reached")
+```
+Simple, predictable. Creates a cliff — the last dollar before the cap fills the space; the next dollar is completely blocked.
+
+### Soft Cap (Fee-Based)
+Rather than blocking positions outright, apply an exponentially increasing fee as OI approaches the cap:
+
+```
+skew_fee_bps = base_fee × exp(k × (current_OI / max_OI))
+```
+
+This creates market pressure to reduce OI before the hard limit is hit, without a sudden cutoff. Protocols like GMX v2 and Hyperliquid use variants of this approach.
+
+### Gradual Tightening
+When conditions change (AUM drops, volatility spikes), do not immediately slash caps to the new level. Phase them in to avoid forcing mass liquidations of positions opened under the old cap:
+
+```
+Step 1: Stop accepting new positions that would increase OI above new cap
+Step 2: Allow existing positions to run; do not force-close them
+Step 3: Cap naturally decreases as traders close positions organically
+```
+
+---
+
+## OI Cap Calibration: Worked Example
+
+**Inputs:**
+```
+Protocol: BTC-USDC perpetual DEX
+Pool AUM:            $80,000,000
+BTC spot 24h volume: $2,000,000,000  (exchange-aggregated)
+BTC 30-day realized vol: 55% annualized → ~3.5% daily
+Desired max single-day pool loss: 15% of AUM = $12,000,000
+```
+
+**Step 1: Compute max net OI from loss tolerance**
+```
+Worst-case 1-day price move (3σ): 3 × 3.5% = 10.5%
+Max Net OI = Max Loss / Max Price Move = $12M / 10.5% ≈ $114M
+```
+
+**Step 2: Liquidity sanity check**
+```
+Liquidity Score = $2B / $114M ≈ 17.5×  ✓  (well above 5–10× threshold)
+```
+
+**Step 3: Set per-side caps**
+```
+Allow symmetric OI up to a balanced total of ~$200M:
+  Max Long OI:  $150M
+  Max Short OI: $150M
+  Max Net OI:   $114M  (hard skew cap)
+```
+
+**Step 4: Dynamic scaling**
+```
+If Pool AUM drops to $40M:
+  New Max Loss: 15% × $40M = $6M
+  New Max Net OI: $6M / 10.5% ≈ $57M
+  Caps auto-tighten accordingly
+```
+
+---
+
+## OI Caps Across Major DEX Protocols
+
+| Protocol | Cap Mechanism | Notable Approach |
+|---|---|---|
+| **GMX v2** | Per-market long/short caps; dynamic with pool depth | OI-based borrowing fee increases utilization cost continuously |
+| **Hyperliquid** | Per-market open interest limits set by governance | Caps adjusted based on oracle quality and liquidity |
+| **Gains Network (gTrade)** | Max OI per asset as % of DAI vault collateral | Caps tighter for exotic/illiquid assets |
+| **Synthetix Perps** | Skew limit (max |long - short| per market) | Funding rate velocity mechanism discourages skew build-up |
+| **dYdX** | No pool counterparty — peer-to-peer matching | OI caps less critical; position limits enforced per trader |
+
+---
+
+## Summary
+
+| Question | Answer |
+|---|---|
+| Why do OI caps exist? | To prevent the LP pool from absorbing losses that exceed its collateral |
+| What does a cap limit? | New position opens once total OI (or net OI) reaches the threshold |
+| What determines the cap level? | Pool AUM, asset liquidity, oracle risk, volatility regime |
+| Hard cap vs. soft cap? | Hard cap blocks positions; soft cap applies escalating fees as OI approaches the limit |
+| When should caps tighten? | Pool AUM falls, volatility rises, spot liquidity thins, or funding rate hits extremes |
+| When should caps loosen? | Pool AUM grows, volatility normalizes, liquidity deepens |
+| Best practice for implementation? | Dynamic caps (auto-scale with AUM) + skew cap + soft fee curve before hard block |
