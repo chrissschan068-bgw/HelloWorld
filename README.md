@@ -1275,3 +1275,277 @@ If Pool AUM drops to $40M:
 | When should caps tighten? | Pool AUM falls, volatility rises, spot liquidity thins, or funding rate hits extremes |
 | When should caps loosen? | Pool AUM grows, volatility normalizes, liquidity deepens |
 | Best practice for implementation? | Dynamic caps (auto-scale with AUM) + skew cap + soft fee curve before hard block |
+
+---
+
+# Detecting Wash Trading Using OI and Volume Ratio
+
+## What Is Wash Trading?
+
+**Wash trading** is the practice of simultaneously buying and selling the same asset — or coordinating trades between colluding accounts — to artificially inflate reported trading volume without taking any real economic risk or changing beneficial ownership.
+
+It is used to:
+- Fake liquidity and activity on an exchange or token
+- Inflate a token's perceived popularity for marketing or exchange listing purposes
+- Manipulate rankings on volume-tracking sites (CoinGecko, CoinMarketCap, DeFiLlama)
+- Generate artificial fee revenue or reward token emissions in incentivized trading programs
+
+On DEXs and crypto derivatives platforms, the **OI-to-Volume ratio** is one of the most reliable quantitative signals for detecting wash trading.
+
+---
+
+## The Core Insight: OI vs. Volume
+
+| Metric | What It Measures | Wash-Tradeable? |
+|---|---|---|
+| **Volume** | Total notional value of all trades executed in a period | Yes — easily inflated by round-tripping |
+| **Open Interest** | Total notional value of outstanding open positions | Much harder — requires locking up real collateral |
+
+**Key asymmetry:** Volume can be inflated by executing offsetting buy and sell trades repeatedly. Each round-trip adds to volume twice (once for the buy leg, once for the sell leg) but leaves OI completely unchanged (the position opens and immediately closes).
+
+Open Interest, by contrast, requires capital to be posted as margin and held at risk. It cannot be inflated without actually taking on price exposure. This makes OI a much more reliable ground-truth measure of genuine market activity.
+
+---
+
+## The OI/Volume Ratio as a Wash Trading Detector
+
+### Definition
+
+```
+OI/Volume Ratio = Open Interest / Rolling Volume (same period)
+
+e.g., Daily OI/Volume = End-of-Day OI / 24h Trading Volume
+```
+
+### Interpretation
+
+| OI/Volume Ratio | Interpretation |
+|---|---|
+| **High (> 0.5 – 1.0×)** | Genuine activity — traders are holding positions, not just round-tripping |
+| **Moderate (0.1 – 0.5×)** | Normal range for active, liquid perpetual markets |
+| **Very low (< 0.05×)** | Strong wash trading signal — volume far exceeds any plausible outstanding risk |
+| **Near zero (< 0.01×)** | Almost certain wash trading or bot-generated artificial volume |
+
+### Real-World Benchmarks
+
+Healthy, liquid perpetual futures markets on major DEXs and CEXs typically show:
+
+```
+BTC-PERP (Binance):    OI/Volume ≈ 0.3 – 0.8×
+ETH-PERP (dYdX):       OI/Volume ≈ 0.2 – 0.6×
+Major DEX perp market: OI/Volume ≈ 0.1 – 0.5×
+
+Suspected wash-traded token (DEX spot): OI/Volume ≈ 0.001 – 0.01×
+```
+
+A token or market showing OI/Volume < 0.02× while claiming large volume should be treated with high suspicion.
+
+---
+
+## How Wash Trading Manifests in the OI/Volume Ratio
+
+### Scenario 1: Spot Market Wash Trading (No OI)
+
+On a spot DEX (Uniswap, etc.), there is no OI concept. Wash traders simply:
+
+```
+Wallet A → buys 1,000 TOKEN → Wallet B
+Wallet B → sells 1,000 TOKEN → Wallet A
+Repeat 1,000 times per day
+```
+
+Result: $2M reported volume, zero net position change, zero economic risk.
+
+Detection here requires on-chain wallet graph analysis (see Section below) rather than OI/Volume ratio, since spot markets have no OI.
+
+### Scenario 2: Perpetual Futures Wash Trading (OI Visible)
+
+On a perpetual DEX, wash trading between colluding accounts still produces the tell-tale low OI/Volume ratio:
+
+```
+Account A: opens 10 BTC long   → OI +10 BTC
+Account B: opens 10 BTC short  → OI +10 BTC  (OI = 20 BTC)
+Account A: closes long          → OI -10 BTC
+Account B: closes short         → OI -10 BTC  (OI = 0 BTC)
+Repeat 100× per hour
+```
+
+```
+Volume generated:  100 × 2 × 10 BTC × $65,000 = $1,300,000,000
+OI at end of day:  $0
+
+OI/Volume ratio:   ~0.000  ← extreme wash trading signal
+```
+
+Even if the accounts stagger positions slightly so OI is never exactly zero, the ratio remains orders of magnitude below legitimate market activity.
+
+---
+
+## A Step-by-Step Detection Framework
+
+### Step 1: Calculate the OI/Volume Ratio
+
+```python
+# Pseudocode
+for each market in markets:
+    ratio = end_of_period_OI / period_volume
+    if ratio < WASH_THRESHOLD:  # e.g., 0.05
+        flag_for_investigation(market)
+```
+
+Use rolling windows (1h, 4h, 24h) to avoid single-period anomalies.
+
+### Step 2: Compute Volume Velocity vs. OI Velocity
+
+Legitimate trading tends to show correlated changes in both OI and volume. Wash trading shows high volume velocity with near-zero OI velocity.
+
+```
+Volume Velocity = ΔVolume / Δt
+OI Velocity     = ΔOI / Δt
+
+Wash Signal Score = Volume Velocity / max(OI Velocity, ε)
+```
+
+A very high Wash Signal Score (e.g., > 50×) indicates volume is being generated without any corresponding position-taking.
+
+### Step 3: Analyze Trade Size Distribution
+
+Legitimate markets exhibit a natural power-law distribution of trade sizes (many small trades, few large ones). Wash trading tends to produce:
+- Suspiciously uniform trade sizes (bot round-tripping at a fixed size)
+- Clustering at round numbers
+- Very high trade frequency with identical or near-identical sizes
+
+```
+Gini coefficient of trade sizes:
+  Legitimate market: 0.6 – 0.9  (high inequality — few large trades dominate)
+  Wash trading:      0.1 – 0.4  (low inequality — many similar-sized trades)
+```
+
+### Step 4: Examine the Funding Rate Response
+
+In a legitimate perpetual market, large volume accompanied by OI growth will move the funding rate (as OI imbalance develops). In wash trading:
+
+```
+Legitimate:   High volume + growing OI → funding rate shifts toward crowded side
+Wash trading: High volume + flat OI    → funding rate stays near zero despite "activity"
+```
+
+A market showing massive reported volume but a persistently near-zero funding rate and flat OI is a strong wash trading indicator.
+
+### Step 5: On-Chain Address Graph Analysis
+
+For DEXs where all trades are on-chain, wallet-level analysis can confirm suspicions:
+
+- **Circular flow detection**: Token flows from wallet A → B → C → A form closed loops with no external net flow
+- **Common funding source**: All active wallets funded from a single parent wallet (a "sybil cluster")
+- **Time-synchronized activity**: Multiple wallets executing trades within the same block or within seconds of each other
+- **Zero net inventory change**: Wallets end each period with the same balance they started with
+
+```
+Sybil cluster detection heuristic:
+  1. Build a directed graph of token transfers
+  2. Find strongly connected components (SCCs)
+  3. SCCs with high internal transfer volume and low external volume = wash trading rings
+```
+
+### Step 6: Compute a Composite Wash Trading Score
+
+Combine multiple signals into a single score:
+
+| Signal | Weight | Wash Indicator |
+|---|---|---|
+| OI/Volume ratio | 30% | < 0.05× |
+| Volume velocity / OI velocity | 20% | > 50× |
+| Trade size uniformity (low Gini) | 15% | Gini < 0.3 |
+| Funding rate flatness vs. volume | 15% | Near-zero funding despite high volume |
+| On-chain circular flow ratio | 20% | > 30% of volume in closed loops |
+
+```
+Composite Score = Σ(weight_i × normalized_signal_i)
+Flag if Composite Score > 0.7
+```
+
+---
+
+## Additional Ratio Signals
+
+### 1. Volume-to-Market-Cap Ratio
+```
+V/MC = 24h Volume / Market Cap
+```
+Legitimate markets rarely sustain V/MC > 1.0 for extended periods. V/MC > 5–10× is almost always inflated.
+
+### 2. Volume-to-Liquidity Ratio (AMM-specific)
+```
+V/L = 24h Volume / Total Value Locked (TVL) in pool
+```
+An AMM pool with $500K TVL reporting $50M daily volume (V/L = 100×) is almost certainly wash traded. Healthy AMM pools typically show V/L of 0.5–5×.
+
+### 3. Fee Revenue Sanity Check
+```
+Expected Fees = Volume × Fee Rate
+Actual Fees Collected (on-chain) should ≈ Expected Fees
+```
+If reported volume is legitimate, the on-chain fee accrual should match. If reported volume is inflated but fee revenue is low (e.g., because wash traders self-rebate or use zero-fee routes), there is a discrepancy.
+
+### 4. Taker/Maker Ratio Anomaly
+In a wash-traded market where the same entity controls both sides:
+- Taker/Maker ratio approaches exactly 1.0 (every buy has an equal and opposite sell from the same actor)
+- In legitimate markets, the ratio fluctuates as different participants take and make
+
+---
+
+## Specific Patterns on DEX Perpetuals
+
+### Pattern 1: Intraday OI Cycling
+OI spikes sharply then collapses back to near-zero, repeatedly, within a single day. This is the footprint of accounts opening and closing large positions purely to generate volume.
+
+```
+OI (in $M)
+│
+│    ▲      ▲      ▲
+│   / \    / \    / \
+│  /   \  /   \  /   \
+│ /     \/     \/     \
+└──────────────────────── time (hours)
+  Volume: very high throughout
+  Legitimate activity: NO
+```
+
+### Pattern 2: Perfectly Offsetting Accounts
+Two accounts consistently take exact opposite positions of identical size at nearly the same timestamp. On a public blockchain, this is trivially detectable:
+
+```
+Block 12345001: Account_A buys 5 ETH-PERP @ $3,200
+Block 12345002: Account_B sells 5 ETH-PERP @ $3,200
+Block 12345050: Account_A sells 5 ETH-PERP @ $3,201
+Block 12345051: Account_B buys 5 ETH-PERP @ $3,201
+```
+
+### Pattern 3: Self-Funded Sybil Ring
+A single on-chain funding transaction sends capital to 10+ wallets, all of which then trade against each other on the same DEX. The parent wallet is the tell.
+
+---
+
+## Limitations and Caveats
+
+**OI/Volume alone is not conclusive.** Some legitimate high-frequency strategies (scalpers, market makers) produce high volume relative to OI because they open and close positions rapidly. Additional signals are always needed.
+
+**Delta-neutral strategies** (simultaneously long on one venue, short on another) may show low OI on any single venue but represent genuine hedging activity, not wash trading.
+
+**Protocol design can suppress OI.** Some DEX designs (e.g., those that auto-settle or expire positions daily) structurally produce lower OI/Volume ratios and should be benchmarked against their own historical baseline rather than cross-market norms.
+
+**Gas costs are a natural deterrent on L1.** On high-fee chains (Ethereum mainnet), wash trading is expensive. On low-fee chains (Solana, Arbitrum, Base), it is essentially free, so the bar for suspicion should be lower.
+
+---
+
+## Summary
+
+| Question | Answer |
+|---|---|
+| Why is OI harder to fake than volume? | OI requires real collateral at risk; volume only requires executing trades |
+| What OI/Volume ratio signals wash trading? | < 0.05× is suspicious; < 0.01× is almost certainly artificial |
+| What is the primary on-chain detection method? | Circular token flow graph analysis (closed-loop wallet clusters) |
+| Does high V/MC prove wash trading? | Not alone, but V/MC > 5–10× sustained over days is a strong indicator |
+| What legitimate strategies produce low OI/Volume? | HFT market makers and scalpers — check trade size distribution and funding rate response to distinguish |
+| Best composite approach? | OI/Volume + funding rate flatness + trade size Gini + on-chain circular flow score |
