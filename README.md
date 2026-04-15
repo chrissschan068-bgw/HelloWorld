@@ -1549,3 +1549,464 @@ A single on-chain funding transaction sends capital to 10+ wallets, all of which
 | Does high V/MC prove wash trading? | Not alone, but V/MC > 5–10× sustained over days is a strong indicator |
 | What legitimate strategies produce low OI/Volume? | HFT market makers and scalpers — check trade size distribution and funding rate response to distinguish |
 | Best composite approach? | OI/Volume + funding rate flatness + trade size Gini + on-chain circular flow score |
+
+---
+
+# DEX Risk Analyst Playbook: Key Trading Risk Metrics and Monitoring Indicators
+
+> Context: You are a risk analyst at a decentralized perpetual exchange (e.g., Hyperliquid, GMX, dYdX). Your mandate is to protect the solvency of the protocol, the integrity of the liquidity pool (or clearing house), and the fairness of the market for all participants.
+
+---
+
+## The Risk Analyst's Mandate
+
+A DEX risk analyst monitors five distinct risk domains simultaneously:
+
+```
+┌─────────────────────────────────────────────────────┐
+│              DEX Risk Analyst Scope                 │
+├─────────────────┬───────────────────────────────────┤
+│ 1. Market Risk  │ Price moves against pool exposure  │
+│ 2. Liquidity    │ Shallow markets, wide spreads      │
+│ 3. Counterparty │ Trader insolvency, bad debt        │
+│ 4. Oracle Risk  │ Price manipulation / staleness     │
+│ 5. Protocol     │ Smart contract, parameter, MEV     │
+└─────────────────┴───────────────────────────────────┘
+```
+
+---
+
+## Domain 1: Market Risk Metrics
+
+### 1.1 Net Open Interest (Net OI / Skew)
+
+```
+Net OI = Long OI - Short OI
+Skew % = Net OI / Total OI × 100
+```
+
+**Why it matters:** The pool or clearing house is the counterparty to net OI. If Long OI >> Short OI, the pool is net short and loses money when price rises.
+
+**Alert thresholds:**
+```
+Green:  |Skew %| < 15%   → balanced, low pool risk
+Yellow: |Skew %| 15–30%  → monitor closely, tighten caps
+Red:    |Skew %| > 30%   → immediate action (raise skew fees, activate OI caps)
+```
+
+**Monitoring cadence:** Real-time, per market. Dashboard should show a live skew bar for every active market.
+
+---
+
+### 1.2 Pool / Vault Delta Exposure
+
+```
+Pool Delta (per market) = -Net OI  (pool is short what traders are net long)
+Pool Dollar PnL ≈ -Net OI × ΔPrice / Price
+```
+
+**Aggregate pool delta** across all markets is the single most important number on the risk desk:
+
+```
+Total Pool Delta ($) = Σ per-market (Net OI_i × Price_i_sensitivity)
+```
+
+**Alert:** If a 5% adverse price move across all open markets would exceed 10% of pool AUM, reduce OI caps or force-rebalance.
+
+---
+
+### 1.3 Mark-to-Market Pool P&L (Unrealized)
+
+Track what the pool's P&L would be if all open positions were settled right now at current mark prices.
+
+```
+Pool Unrealized P&L = Σ positions (trader_unrealized_PnL × -1)
+```
+
+A rapidly deteriorating pool P&L (e.g., -2% of AUM in one hour) is an early warning signal that requires immediate investigation.
+
+---
+
+### 1.4 Funding Rate Level and Velocity
+
+```
+Current Funding Rate (per 8h)
+Funding Rate Velocity = ΔFunding Rate / Δt
+```
+
+**Why it matters:**
+- Extreme funding rates (>0.1%/8h = >136% annualized) indicate dangerous OI imbalance
+- Rapidly accelerating funding rate velocity means imbalance is growing faster than the market is self-correcting
+- If funding is high but OI keeps growing in the crowded direction, the market is not self-correcting — manual intervention may be needed
+
+**Alert thresholds:**
+```
+Green:  |Funding| < 0.03%/8h
+Yellow: |Funding| 0.03–0.1%/8h  → increasing skew fee, monitor
+Red:    |Funding| > 0.1%/8h     → activate hard OI cap in crowded direction
+```
+
+---
+
+### 1.5 Mark Price vs. Oracle (Index) Price Divergence
+
+```
+Divergence % = (Mark Price - Oracle Price) / Oracle Price × 100
+```
+
+**Why it matters:** Large divergence means the perpetual is trading far from fair value. This:
+- Signals potential oracle manipulation attempt
+- Creates arbitrage opportunity that sophisticated actors exploit against the pool
+- Can trigger incorrect liquidations (if the mark price moves away from index)
+
+**Alert thresholds:**
+```
+Green:  |Divergence| < 0.3%
+Yellow: 0.3–1.0%   → investigate oracle feeds, check for manipulation
+Red:    > 1.0%     → halt new position opens; trigger circuit breaker review
+```
+
+---
+
+## Domain 2: Liquidity Risk Metrics
+
+### 2.1 Market Depth / Slippage at Standard Trade Sizes
+
+For order-book DEXs (dYdX), monitor bid-ask spread and depth at 1%, 2%, 5% market impact levels.
+
+For AMM/pool DEXs (GMX, Hyperliquid), monitor:
+
+```
+Pool Utilization = Total OI / Pool AUM
+```
+
+**Alert thresholds:**
+```
+Green:  Pool Utilization < 50%
+Yellow: 50–75%    → tighten OI caps, raise skew fee
+Red:    > 75%     → hard cap enforcement, pause new position opens
+```
+
+---
+
+### 2.2 Liquidation Depth at Current Prices
+
+Map all open positions to their liquidation prices. Compute the **liquidation wall** — the notional value of positions that would be liquidated at each 1% price increment.
+
+```
+Liquidation Wall ($) at price P = Σ positions with liquidation_price ≈ P
+```
+
+**Why it matters:** A large liquidation wall just below (for longs) or above (for shorts) current price creates a reflexive risk: if price touches it, forced liquidations amplify the move, potentially causing a cascade.
+
+**Alert:** If liquidation wall > 5% of pool AUM within 3% of current price, this is a high-priority risk event.
+
+```
+Example:
+  BTC current price:  $65,000
+  Liquidation wall:   $320M of longs liquidate between $63,000–$62,000
+  Pool AUM:           $200M
+  → Wall = 160% of AUM within 3% move = CRITICAL
+```
+
+---
+
+### 2.3 Liquidation Engine Health
+
+Monitor whether the protocol's liquidation engine is keeping up with market moves:
+
+```
+Liquidation Lag = Time between liquidation trigger and execution
+Liquidation Success Rate = Successful liquidations / Total triggered liquidations
+Clawback Rate = Positions that could not be fully liquidated at fair value
+```
+
+**Alert:** Clawback rate > 0% means bad debt is entering the system. Any non-zero clawback triggers immediate review.
+
+---
+
+### 2.4 Insurance Fund Level and Burn Rate
+
+```
+Insurance Fund Balance ($)
+Insurance Fund Burn Rate = ΔIF Balance / Δt  (when negative = drawdown)
+IF Coverage Ratio = IF Balance / Total Outstanding Bad Debt
+```
+
+**Alert thresholds:**
+```
+Green:  IF > 5% of Pool AUM
+Yellow: IF 2–5% of Pool AUM  → restrict new risky positions, reduce leverage maximums
+Red:    IF < 2% of Pool AUM  → activate socialised loss mechanism, halt withdrawals
+Critical: IF = 0             → protocol insolvency mode; emergency governance action
+```
+
+---
+
+## Domain 3: Counterparty / Trader Risk Metrics
+
+### 3.1 Large Position Concentration
+
+```
+Top-N Concentration = Top N traders' OI / Total OI
+Largest Single Position / Total OI
+```
+
+**Why it matters:** A single large position that cannot be liquidated cleanly without market impact poses tail risk to the pool. On Hyperliquid, the March 2024 whale position ($200M+ ETH long) is a canonical example of concentration risk.
+
+**Alert:**
+```
+Green:  Largest position < 5% of Total OI
+Yellow: 5–10% of Total OI   → flag for enhanced monitoring
+Red:    > 10% of Total OI   → immediate position limit review; consider forced reduction
+```
+
+---
+
+### 3.2 Margin Utilization Distribution
+
+Track the distribution of margin utilization (used margin / available margin) across all open accounts:
+
+```
+% of accounts at > 80% margin utilization  (near-liquidation)
+% of accounts at > 90% margin utilization  (imminent liquidation)
+Weighted average margin utilization
+```
+
+A spike in accounts approaching liquidation threshold — especially concentrated in one direction — signals an impending liquidation cascade if price moves adversely.
+
+---
+
+### 3.3 Unrealized P&L Distribution (PnL Skew)
+
+```
+Total Unrealized Profit (sum of all profitable positions)
+Total Unrealized Loss  (sum of all losing positions)
+Net System Unrealized PnL = Total Profit - Total Loss
+```
+
+A large net system unrealized profit means the pool owes money to traders. This is fine as long as the pool has sufficient AUM to cover it. But:
+
+```
+Solvency Stress Test:
+  If all profitable positions close simultaneously,
+  can the pool pay out in full?
+
+  Coverage Ratio = Pool AUM / Total Unrealized Profit
+  Alert if Coverage Ratio < 1.2×
+```
+
+---
+
+### 3.4 Leverage Distribution
+
+```
+Average Effective Leverage = Total Notional OI / Total Margin Posted
+Leverage Distribution: % of OI at 1–5×, 5–10×, 10–20×, 20–50×, >50×
+```
+
+High concentration of OI at extreme leverage (>20×) means a small adverse price move liquidates a large notional amount. This is especially dangerous when combined with a large liquidation wall.
+
+---
+
+## Domain 4: Oracle Risk Metrics
+
+### 4.1 Oracle Price Freshness
+
+```
+Oracle Staleness = Current Time - Last Oracle Update Timestamp
+```
+
+**Alert:**
+```
+Green:  Staleness < 2 seconds  (Pyth, Chainlink with heartbeat)
+Yellow: 2–10 seconds           → monitor for manipulation window
+Red:    > 10 seconds           → halt mark price updates, freeze liquidations,
+                                  block new position opens
+```
+
+Stale oracles create two risks: (1) the mark price diverges from true fair value, enabling arbitrage against the pool; (2) liquidations trigger at wrong prices, creating bad debt.
+
+---
+
+### 4.2 Oracle Confidence Interval
+
+Pyth Network (used by Solana-based DEXs) provides a confidence interval with every price update:
+
+```
+Oracle Confidence = σ (standard deviation of price estimate)
+Confidence Ratio = σ / Price
+```
+
+**Alert:**
+```
+Green:  Confidence Ratio < 0.1%
+Yellow: 0.1–0.5%   → widen spread, reduce max leverage on affected market
+Red:    > 0.5%     → halt new positions; use last known reliable price
+```
+
+---
+
+### 4.3 Cross-Oracle Deviation
+
+For critical markets, compare multiple oracle sources:
+
+```
+Cross-Oracle Deviation = |Oracle_A - Oracle_B| / mid_price × 100
+```
+
+Significant divergence between Pyth, Chainlink, and CEX reference prices indicates either a feed problem or active manipulation.
+
+**Alert:** Cross-oracle deviation > 0.5% triggers immediate manual review.
+
+---
+
+### 4.4 Spot Market Thin Liquidity Warning
+
+For lower-cap assets, monitor the underlying spot market depth:
+
+```
+Spot Market Impact Cost (1% depth) = $ needed to move spot price 1%
+Manipulation Cost = Spot Market Impact Cost × desired_oracle_move / 1%
+```
+
+If the cost to move the oracle price by 1% in spot markets is less than the potential gain from manipulating the mark price on the DEX (via large OI), the market is at risk of oracle manipulation attacks.
+
+```
+Risk Flag if: Potential Oracle Gain > 2× Spot Manipulation Cost
+```
+
+---
+
+## Domain 5: Protocol / Operational Risk Metrics
+
+### 5.1 Total Value at Risk (Protocol TVaR)
+
+Daily protocol-level VaR: what is the maximum single-day loss to the pool at 99% confidence?
+
+```
+Protocol 1-day 99% VaR = Pool AUM × daily_vol × 2.326 × Net_Skew_ratio
+```
+
+Track TVaR as a % of Insurance Fund:
+
+```
+Green:  TVaR < 50% of IF
+Yellow: TVaR 50–100% of IF   → reduce OI caps
+Red:    TVaR > 100% of IF    → single bad day could wipe insurance fund
+```
+
+---
+
+### 5.2 Socialized Loss Exposure
+
+```
+Potential Socialized Loss = max(0, Total Unrealized Profit - Pool AUM - Insurance Fund)
+```
+
+If this number is positive, the protocol cannot pay all winners even after exhausting the insurance fund. This is the definition of protocol insolvency risk.
+
+**Alert:** Any positive value here is a critical incident.
+
+---
+
+### 5.3 MEV and Toxic Flow Rate
+
+On-chain DEXs are vulnerable to MEV. Track:
+
+```
+Sandwich Attack Rate = Sandwiched transactions / Total transactions
+Frontrun Rate = Trades executed within N blocks of a user's pending transaction
+Toxic Flow % = Volume from known MEV bots / Total volume
+```
+
+High toxic flow rates indicate that LPs and regular traders are being systematically extracted, which degrades LP returns and discourages legitimate liquidity provision.
+
+---
+
+### 5.4 Gas / Transaction Cost Monitoring (Solana / L2)
+
+For DEXs on Solana or L2s:
+
+```
+Network Congestion Level (TPS utilization)
+Transaction Failure Rate
+Average Confirmation Latency
+Liquidation Engine Transaction Success Rate
+```
+
+During network congestion, liquidation transactions may fail. Failed liquidations create bad debt. Monitoring network health is a direct input into risk posture.
+
+---
+
+### 5.5 Smart Contract Parameter Drift
+
+Track all live protocol parameters against their governance-approved bounds:
+
+| Parameter | Current Value | Safe Range | Alert |
+|---|---|---|---|
+| Max leverage | 50× | ≤ 50× | If changed without governance |
+| Maintenance margin | 2% | ≥ 1.5% | If lowered below floor |
+| OI cap (per market) | $150M | Dynamic | If > AUM × 2.0× |
+| Liquidation fee | 0.5% | ≥ 0.3% | If lowered (reduces liquidator incentive) |
+| IF contribution rate | 10% of fees | ≥ 5% | If lowered |
+
+Parameter changes outside approved ranges should trigger governance alerts even if enacted correctly.
+
+---
+
+## The Risk Dashboard: Recommended Layout
+
+A practical real-time risk dashboard for a DEX risk analyst should display:
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  PROTOCOL HEALTH                                                 │
+│  Pool AUM: $320M  |  IF Balance: $18M (5.6%)  |  Status: GREEN  │
+├──────────────────┬───────────────────────────────────────────────┤
+│  MARKET RISK     │  PER-MARKET OI SKEW                           │
+│                  │  BTC: Long $180M / Short $165M  Skew: +8.3%   │
+│  Net Pool Delta  │  ETH: Long $95M  / Short $120M  Skew: -11.8%  │
+│  $18.5M long     │  SOL: Long $42M  / Short $28M   Skew: +20.0% ⚠│
+│                  │  Other: ...                                   │
+├──────────────────┼───────────────────────────────────────────────┤
+│  LIQUIDATION     │  ORACLE HEALTH                                │
+│  Risk (3% move): │  BTC: Pyth $64,998 | Freshness: 0.4s ✓       │
+│  $28M long wall  │  ETH: Pyth $3,201  | Freshness: 0.6s ✓       │
+│  $12M short wall │  SOL: Pyth $148    | Freshness: 1.2s ✓       │
+├──────────────────┼───────────────────────────────────────────────┤
+│  TOP POSITIONS   │  FUNDING RATES                                │
+│  #1: $42M BTC L  │  BTC: +0.021%/8h  ETH: -0.008%/8h           │
+│  #2: $38M ETH S  │  SOL: +0.087%/8h ⚠ (approaching threshold)  │
+│  #3: $21M SOL L  │                                              │
+└──────────────────┴───────────────────────────────────────────────┘
+```
+
+---
+
+## Escalation Runbook
+
+| Severity | Trigger | Immediate Action | Escalation |
+|---|---|---|---|
+| **P1 Critical** | IF < 2% AUM OR Socialized Loss > $0 | Halt all new position opens; activate ADL | All hands; on-call governance vote |
+| **P2 High** | Oracle staleness > 10s OR Skew > 30% | Freeze affected market; activate OI cap | Risk lead + on-call engineer |
+| **P3 Medium** | IF 2–5% AUM OR Skew 15–30% OR Liquidation wall > 5% AUM within 3% | Tighten caps; raise skew fees | Risk analyst escalates to risk lead |
+| **P4 Low** | Funding > 0.05%/8h OR Pool Utilization 60–75% | Increase skew fees; monitor closely | Risk analyst self-manages |
+| **P5 Info** | Any parameter change | Log and verify against approved ranges | No escalation unless out of range |
+
+---
+
+## Summary: The 10 Numbers a DEX Risk Analyst Watches Every Hour
+
+| # | Metric | Why |
+|---|---|---|
+| 1 | **Net Pool Delta ($)** | Direct P&L exposure of the protocol |
+| 2 | **Per-market Skew %** | Where dangerous one-sidedness is building |
+| 3 | **Insurance Fund Balance (% AUM)** | Last line of defense before socialized loss |
+| 4 | **Funding Rate (all markets)** | Leading indicator of OI imbalance |
+| 5 | **Oracle Staleness & Confidence** | Manipulation and bad-liquidation risk |
+| 6 | **Liquidation Wall (within ±3%)** | Cascade risk if price moves adversely |
+| 7 | **Pool Utilization %** | How close to OI cap the protocol is |
+| 8 | **Top Position Concentration** | Single-actor tail risk |
+| 9 | **Accounts Near Liquidation (>80% margin used)** | Imminent cascade warning |
+| 10 | **Mark-Oracle Divergence (all markets)** | Manipulation and arbitrage drain risk |
