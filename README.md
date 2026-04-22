@@ -2010,3 +2010,279 @@ A practical real-time risk dashboard for a DEX risk analyst should display:
 | 8 | **Top Position Concentration** | Single-actor tail risk |
 | 9 | **Accounts Near Liquidation (>80% margin used)** | Imminent cascade warning |
 | 10 | **Mark-Oracle Divergence (all markets)** | Manipulation and arbitrage drain risk |
+
+---
+
+# Market Surveillance Analyst: Job Responsibilities at a Regulated Crypto Exchange in Europe
+
+## Context: The European Regulatory Framework
+
+A regulated crypto exchange operating in Europe is subject to an increasingly comprehensive body of law. As of 2024–2025, the primary frameworks are:
+
+| Regulation | Full Name | Scope |
+|---|---|---|
+| **MiCA** | Markets in Crypto-Assets Regulation (EU 2023/1114) | Comprehensive crypto-asset regulation; applies from Dec 2024 for CASPs |
+| **MAR** | Market Abuse Regulation (EU 596/2014) | Applies to crypto where admitted to trading on regulated venues |
+| **MiFID II / MiFIR** | Markets in Financial Instruments Directive / Regulation | Applies to crypto financial instruments (derivatives, tokenized securities) |
+| **AMLD6** | 6th Anti-Money Laundering Directive | AML/CFT obligations for crypto asset service providers (CASPs) |
+| **TFR** | Transfer of Funds Regulation (Travel Rule) | Requires originator/beneficiary data on crypto transfers |
+| **DORA** | Digital Operational Resilience Act | Operational and cyber resilience requirements |
+
+Under MiCA Article 83–92 and MAR, licensed CASPs (Crypto Asset Service Providers) and trading venue operators are **explicitly required** to have market surveillance programs. The Market Surveillance Analyst sits at the intersection of compliance, legal, and technology.
+
+---
+
+## Organisational Position
+
+```
+Chief Compliance Officer (CCO)
+    └── Head of Market Integrity / Market Surveillance
+            └── Market Surveillance Analyst(s)
+                    ├── Works with: Legal & Compliance
+                    ├── Works with: AML / Financial Crime
+                    ├── Works with: Technology / Data Engineering
+                    └── Reports to: Regulators (NCA, ESMA, national FIUs)
+```
+
+NCA = National Competent Authority (e.g., BaFin in Germany, AMF in France, AFM in Netherlands, FCA in UK post-Brexit)
+
+---
+
+## Core Job Responsibilities
+
+### 1. Real-Time and Post-Trade Market Monitoring
+
+**Daily surveillance of all trading activity** across spot, derivatives, and staking/lending products for signs of market abuse.
+
+Key activities:
+- Monitor live order flow, trade executions, and order book dynamics for anomalous patterns
+- Run automated surveillance alerts and triage them (true positive vs. false positive)
+- Investigate price and volume spikes, abnormal trading activity around news events or listings
+- Track large order submissions, cancellations, and amendments for potential layering or spoofing
+
+Tools typically used: Nasdaq Surveillance (SMARTS), Eventus Validus, Behavox, or proprietary internal surveillance systems; Python/SQL for ad hoc investigation.
+
+---
+
+### 2. Market Manipulation Detection
+
+Identify and investigate the full spectrum of market abuse typologies defined under **MAR Article 12** and **MiCA Article 91**:
+
+| Abuse Type | Description | DEX / Crypto Manifestation |
+|---|---|---|
+| **Insider Trading** | Trading on material non-public information | Trading ahead of token listings, protocol upgrades, partnership announcements |
+| **Market Manipulation** | Conduct that gives false/misleading signals of supply/demand/price | Pump-and-dump, wash trading, spoofing, layering |
+| **Spoofing / Layering** | Placing large orders with intent to cancel before execution to move price | High cancel-to-trade ratio on order books |
+| **Wash Trading** | Buying and selling same asset between related accounts to inflate volume | Circular on-chain flows, coordinated account activity |
+| **Pump and Dump** | Coordinating artificial price inflation then selling at peak | Coordinated social media campaigns + abnormal buy volume |
+| **Ramping / Marking the Close** | Executing trades near market close to influence reference/settlement prices | Trades clustered in final minutes of index fixing windows |
+| **Front-Running** | Trading ahead of known client orders | Broker-dealer using order flow information |
+| **Stop-Hunting** | Deliberately moving price to trigger stop-loss orders | Detectable via price spikes that reverse immediately after hitting a known OI cluster |
+
+---
+
+### 3. Suspicious Transaction and Order Reporting (STORs)
+
+Under **MAR Article 16** and **MiCA Article 92**, the exchange has a legal obligation to submit **Suspicious Transaction and Order Reports (STORs)** to the relevant NCA when there are reasonable grounds to suspect market abuse.
+
+**Analyst responsibilities:**
+- Review flagged alerts and determine whether they meet the reasonable suspicion threshold
+- Document the investigation rationale, evidence gathered, and decision made
+- Draft and submit STORs to the NCA within required timeframes (typically as soon as possible, no regulatory "clock" but prompt reporting expected)
+- Maintain a STOR register and ensure all submissions are tracked
+- Provide follow-up information to the NCA if requested post-submission
+
+**Key distinction:** STORs are **not** the same as SARs (Suspicious Activity Reports under AML). STORs relate specifically to market integrity. Both may be filed for the same conduct if it involves both market abuse and money laundering.
+
+---
+
+### 4. AML / Financial Crime Intersection
+
+While AML is typically a separate function, market surveillance analysts work closely with the financial crime team because market abuse and money laundering are frequently connected (e.g., proceeds from pump-and-dump schemes are laundered through subsequent transactions).
+
+Responsibilities include:
+- Flag trades that appear to have no economic rationale and may represent layering of illicit funds
+- Cooperate with AML investigators when unusual trading patterns coincide with suspicious wallet activity
+- Provide trade data to AML teams for SAR-related investigations
+- Under **AMLD6 and TFR**, assist with identifying high-risk counterparties and ensuring travel rule compliance on relevant transfers
+
+---
+
+### 5. Algorithm and Automated Trading Oversight
+
+Under **MiFID II RTS 6** (algorithmic trading requirements) and **MiCA**, exchanges must monitor algorithmic trading for disorderly market conditions.
+
+**Analyst responsibilities:**
+- Review algorithmic trading notifications submitted by members/clients
+- Monitor algo trading activity for signs of disorderly markets: excessive order-to-trade ratios, abnormal cancellation rates, flash crashes
+- Detect potentially manipulative algorithms (e.g., momentum ignition — placing trades to trigger stop-loss cascades or trend-following algorithms)
+- Liaise with the exchange's technology team on circuit breaker configurations
+
+---
+
+### 6. Listing and Delisting Risk Assessment
+
+New token listings are high-risk periods for market manipulation (especially pump-and-dump and wash trading to inflate liquidity metrics).
+
+**Analyst responsibilities:**
+- Conduct pre-listing surveillance review: assess token's on-chain transaction history for wash trading patterns, concentrated ownership, related-party activity
+- Set initial surveillance thresholds and alert parameters for newly listed assets
+- Monitor enhanced surveillance in the first 30–90 days post-listing
+- Assess delistings for potential insider trading (staff/third parties trading before public announcement)
+
+---
+
+### 7. Regulatory Engagement and Reporting
+
+**Routine regulatory reporting:**
+- Prepare periodic surveillance activity reports for the CCO and board (typically monthly/quarterly)
+- Respond to regulatory requests for information (RFIs) and data pulls from NCAs (BaFin, AMF, AFM, etc.)
+- Contribute to annual surveillance program assessments and audits
+- Prepare evidence packages for regulatory investigations when subpoenas or formal requests are received
+
+**Industry participation:**
+- Participate in ESMA working groups or national NCA consultations on market surveillance guidelines
+- Engage with peer exchanges through industry bodies (e.g., CryptoUK, EUCI, Blockchain for Europe) on common surveillance standards
+- Stay current with MiCA Level 2 technical standards (Regulatory Technical Standards / Implementing Technical Standards) as ESMA publishes them
+
+---
+
+### 8. Surveillance System Development and Tuning
+
+A key ongoing responsibility is ensuring the surveillance system remains effective as markets and manipulation tactics evolve.
+
+**Analyst responsibilities:**
+- Review and tune alert parameters to maintain appropriate sensitivity (minimize false positives without missing genuine abuse)
+- Develop new surveillance scenarios for emerging manipulation typologies (e.g., cross-market manipulation between spot and derivatives, oracle manipulation on DeFi-adjacent products)
+- Work with data engineers to onboard new data sources (on-chain data, social media sentiment, cross-venue data sharing)
+- Document surveillance methodology, alert logic, and tuning decisions for regulatory audit trail purposes
+
+---
+
+### 9. Internal Training and Culture
+
+**Analyst responsibilities:**
+- Deliver training to trading, sales, and product teams on market abuse red flags and employee obligations under MAR/MiCA
+- Maintain internal policies: Market Abuse Policy, Insider List Policy, Personal Account Dealing Policy
+- Conduct periodic communications to staff on notable enforcement actions and emerging typologies
+- Manage the exchange's insider list (persons with access to Inside Information as defined by MAR Article 18)
+
+---
+
+### 10. Cross-Border and Cross-Venue Coordination
+
+Crypto trades across borders and venues instantaneously. Effective surveillance requires coordination beyond the exchange's own order book.
+
+**Analyst responsibilities:**
+- Establish data-sharing arrangements with other regulated exchanges (permitted under MAR framework)
+- Coordinate with NCAs in multiple jurisdictions when an investigation spans EU member states
+- Interface with Europol, the European Banking Authority (EBA), and ESMA on systemic market abuse patterns
+- Monitor for cross-venue manipulation: e.g., manipulating price on Exchange A to benefit a position on Exchange B's derivatives settlement
+
+---
+
+## Key Metrics the Analyst Tracks
+
+| Metric | Purpose |
+|---|---|
+| **STOR volume (monthly)** | Number of reports filed; trend indicating market quality |
+| **Alert-to-STOR conversion rate** | Effectiveness of automated detection (% of alerts becoming STORs) |
+| **False positive rate** | Surveillance system tuning efficiency |
+| **Order-to-Trade Ratio (OTR) per member** | Detects spoofing/layering by high-frequency participants |
+| **Cancel rate by account** | High cancel rates flag potential manipulative order placement |
+| **Volume concentration (Herfindahl Index)** | Market liquidity health; concentrated volume = manipulation risk |
+| **Cross-venue price correlation anomalies** | Cross-market manipulation detection |
+| **Time-to-STOR (hours from detection to submission)** | Regulatory timeliness compliance |
+| **Insider list size and access events** | Governance of material non-public information |
+| **Algo trader OTR breaches** | Disorderly market conduct by automated participants |
+
+---
+
+## Required Skills and Knowledge
+
+### Regulatory / Legal
+- Deep knowledge of MAR, MiCA (especially Title IV market abuse provisions), MiFID II algorithmic trading requirements
+- Familiarity with ESMA guidelines on market abuse (e.g., ESMA/2016/1130)
+- Understanding of national transposition differences across EU member states
+- Knowledge of AMLD/TFR intersection with market surveillance
+
+### Technical / Analytical
+- SQL and Python for data querying and investigation
+- Statistical pattern recognition (time series anomaly detection, clustering of accounts)
+- On-chain data analysis (blockchain explorers, Dune Analytics, Nansen, Chainalysis)
+- Order book microstructure knowledge (bid-ask dynamics, order flow toxicity)
+- Experience with surveillance platforms (SMARTS, Eventus, or similar)
+
+### Soft Skills
+- Meticulous documentation (investigation notes must be regulatory-grade)
+- Ability to communicate findings clearly to legal, compliance, and regulators
+- Judgment under ambiguity (reasonable suspicion is a legal standard, not a certainty)
+- Discretion and confidentiality (STORs and investigations are highly sensitive)
+
+---
+
+## MiCA-Specific Obligations for CASPs (2024 Onwards)
+
+MiCA introduces several surveillance obligations specifically for crypto-asset service providers that go beyond traditional finance:
+
+| MiCA Article | Obligation |
+|---|---|
+| **Art. 76** | Obligation to have systems to detect and report market manipulation |
+| **Art. 83** | Persons professionally arranging/executing transactions must have systems to detect and report suspicious orders/transactions |
+| **Art. 91** | Prohibition on market manipulation in crypto-assets (aligned to MAR Art. 12) |
+| **Art. 92** | Obligation for CASPs to establish and maintain effective systems for prevention and detection of market abuse |
+| **Art. 94** | Cooperation obligation: CASPs must cooperate with NCAs, exchange information, assist investigations |
+
+**Key MiCA additions vs. traditional MAR:**
+- Covers a broader set of crypto-assets (including utility tokens, not just securities)
+- Applies to behaviors on any venue (including unregulated ones) that affect prices on regulated venues
+- Requires surveillance of social media and public communications for coordinated manipulation signals (pump-and-dump coordinated via Telegram, Discord, X/Twitter)
+
+---
+
+## Typical Day: Market Surveillance Analyst
+
+```
+08:00  Review overnight alert queue from automated surveillance system
+       Triage: dismiss false positives, assign priority to genuine anomalies
+
+09:00  Morning market open monitoring — elevated attention to first 30 min
+       Watch for abnormal price moves, OI spikes, unusual order patterns
+
+10:00  Deep-dive investigation on a flagged account cluster from yesterday
+       Pull trade data, cross-reference on-chain activity, check for related wallets
+
+11:30  STOR drafting: prepare suspicious transaction report for submission to BaFin
+       Coordinate with legal counsel on wording and evidence package
+
+13:00  Weekly surveillance review meeting with CCO and Head of Compliance
+       Present metrics: alert volumes, open investigations, STOR count
+
+14:30  Tune alert parameters for newly listed asset (new listing last week)
+       Adjust thresholds based on first-week trading pattern calibration
+
+15:30  Respond to NCA information request — provide trade data extract
+       Confirm data format meets regulatory specification
+
+16:30  Monitor market close — elevated risk window for marking-the-close behaviour
+
+17:00  Update investigation logs, ensure documentation is audit-ready
+       Review tomorrow's high-risk events: token unlock, macro data release
+```
+
+---
+
+## Summary
+
+| Responsibility | Regulatory Anchor |
+|---|---|
+| Real-time trade surveillance | MiCA Art. 92, MAR Art. 16 |
+| STOR filing | MAR Art. 16, MiCA Art. 83 |
+| Market manipulation detection | MAR Art. 12, MiCA Art. 91 |
+| Algorithmic trading oversight | MiFID II RTS 6 |
+| AML/financial crime coordination | AMLD6, TFR |
+| Listing risk review | MiCA Art. 76, internal policy |
+| Regulatory reporting & cooperation | MiCA Art. 94, MAR Art. 16(2) |
+| Insider list management | MAR Art. 18 |
+| Surveillance system tuning | MiCA Art. 92 (effectiveness requirement) |
+| Staff training | MAR Art. 16, internal governance |
