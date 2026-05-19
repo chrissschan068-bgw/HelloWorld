@@ -190,6 +190,12 @@ For those interested in learning quant trading, here are recommended areas of st
 
 ---
 
+## Related Topics
+
+- [Trading Risk Specialist at a Centralized Crypto Exchange](trading-risk-specialist.md) — a deep dive into the job scopes, responsibilities, required skills, and career path for this role.
+
+---
+
 ## Summary
 
 Quantitative trading replaces subjective, discretionary decision-making with systematic, data-driven approaches. It combines deep expertise in mathematics, computer science, and finance to build strategies that can operate at scales and speeds impossible for human traders. While the barriers to entry have fallen thanks to open-source tools and accessible data, the fundamental challenges of finding durable alpha, managing risk, and executing efficiently remain as demanding as ever.
