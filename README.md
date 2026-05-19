@@ -2286,3 +2286,312 @@ MiCA introduces several surveillance obligations specifically for crypto-asset s
 | Insider list management | MAR Art. 18 |
 | Surveillance system tuning | MiCA Art. 92 (effectiveness requirement) |
 | Staff training | MAR Art. 16, internal governance |
+
+---
+
+# Trading Risk Specialist: Job Scopes at a Centralized Crypto Exchange (CEX)
+
+## Role Overview
+
+A **Trading Risk Specialist** at a centralized crypto exchange (e.g., Binance, Coinbase, Kraken, OKX, Bybit) is responsible for identifying, measuring, monitoring, and mitigating risks that arise from the exchange's trading products and client activity. The role sits at the intersection of real-time operations, quantitative risk modelling, and regulatory compliance.
+
+Unlike a Market Surveillance Analyst (who focuses on conduct and manipulation), a Trading Risk Specialist focuses primarily on **financial and operational solvency** — ensuring the exchange and its clients do not incur losses that cannot be absorbed.
+
+---
+
+## Organisational Position
+
+```
+Chief Risk Officer (CRO)
+    └── Head of Trading Risk
+            └── Trading Risk Specialist(s)
+                    ├── Works with: Product (new product risk review)
+                    ├── Works with: Quant / Data Science (model development)
+                    ├── Works with: Engineering (risk system implementation)
+                    ├── Works with: Compliance / Legal (regulatory capital)
+                    └── Works with: Customer Support / Operations (client disputes)
+```
+
+At larger exchanges, the function may split into:
+- **Market Risk** (price/volatility exposure)
+- **Credit Risk** (counterparty and margin exposure)
+- **Liquidation Risk** (client default management)
+- **Product Risk** (new product approval)
+
+At smaller exchanges, one Trading Risk Specialist often covers all of these.
+
+---
+
+## Core Job Scopes
+
+### 1. Margin and Collateral Risk Management
+
+The most operationally intensive responsibility. The exchange extends credit to clients via margin lending and leveraged derivatives. The specialist must ensure that collateral held always covers potential losses.
+
+**Key activities:**
+- Monitor real-time margin utilisation across all client accounts
+- Maintain and tune the **margin framework**: initial margin (IM), maintenance margin (MM), and liquidation thresholds per asset and per leverage tier
+- Calculate and update **margin rates** for all listed assets, calibrated to asset volatility, liquidity, and correlation
+
+```
+Initial Margin Rate = f(volatility, liquidity, max leverage offered)
+
+Common calibration:
+  IM ≥ 1.2 × Expected Shortfall (99%, 1-day) / Notional
+```
+
+- Manage **cross-margin vs. isolated margin** risk: ensure cross-margin accounts are not using profits from one position to mask dangerous exposure in another
+- Review and update margin parameters when market conditions change (volatility spikes, new asset listings, liquidity deterioration)
+
+---
+
+### 2. Liquidation Risk and Engine Oversight
+
+When a client's margin falls below the maintenance threshold, their position must be liquidated. Managing this process is a core scope.
+
+**Key activities:**
+- Monitor the **liquidation queue** in real time — which accounts are approaching or have breached maintenance margin
+- Ensure the **liquidation engine** is functioning correctly: verify positions are being closed at appropriate prices, check for execution failures
+- Assess **liquidation cascade risk**: model the market impact of liquidating large positions and whether the exchange's insurance fund can absorb any shortfall
+- Manage **Auto-Deleveraging (ADL)** — when a position cannot be liquidated without exceeding the insurance fund, ADL counterbalances the loss against profitable opposite-side positions. Define and monitor ADL trigger conditions and priority queues
+
+```
+Liquidation Shortfall = Bankruptcy Price - Liquidation Execution Price
+
+If Shortfall > 0:
+  → Insurance Fund absorbs the difference
+  → If Insurance Fund exhausted → ADL triggers
+```
+
+- Review and approve maximum **leverage tiers** per asset class, ensuring they are consistent with the exchange's risk appetite and liquidation capability
+
+---
+
+### 3. Insurance Fund Management
+
+Most CEX derivatives platforms maintain an Insurance Fund (IF) to absorb liquidation shortfalls before ADL is triggered.
+
+**Key activities:**
+- Monitor the IF balance in real time and as a % of total open interest
+- Define and enforce rules governing IF contributions (typically a % of liquidation fees)
+- Model the IF's sufficiency under stress scenarios: what size of market move would exhaust the IF across all markets simultaneously?
+- Set IF depletion alert thresholds and escalation procedures
+- Report IF health to senior management and regulators as required
+
+```
+IF Stress Test:
+  Scenario: BTC -30% in 1 hour, ETH -35%, SOL -40% simultaneously
+  → Simulate forced liquidations across all affected accounts
+  → Calculate total liquidation shortfall
+  → Compare against IF balance
+  → Determine ADL exposure if IF insufficient
+```
+
+---
+
+### 4. Real-Time Risk Monitoring and Alerting
+
+**Key activities:**
+- Operate and maintain the **real-time risk dashboard**: live P&L by market, liquidation pipeline, IF balance, OI skew, large position flags
+- Define and tune automated alerts for breach of risk limits
+- Act as first responder to risk alerts during market hours (including out-of-hours on-call rotation for 24/7 crypto markets)
+- Investigate abnormal patterns: sudden large position opens, rapid leverage increases, correlated activity across accounts suggesting coordination
+
+**Standard alert thresholds to maintain:**
+
+| Alert | Threshold | Action |
+|---|---|---|
+| Account margin utilisation | > 85% | Flag for monitoring |
+| Account approaching liquidation | MM + 2% buffer | Pre-liquidation preparation |
+| Market liquidation wall | > 3% of IF within ±5% price range | Escalate to Head of Risk |
+| IF balance drop | > 5% in 1 hour | Immediate review; tighten leverage caps |
+| Single position as % of market OI | > 10% | Flag for concentration limit review |
+| Mark price vs. index divergence | > 0.5% | Investigate oracle/price feed |
+
+---
+
+### 5. Position Limit and Concentration Risk Management
+
+**Key activities:**
+- Set and enforce **position limits** per account, per asset, and per leverage tier
+- Monitor **concentration risk**: a single client or cluster of related accounts holding a dominant share of open interest in a market
+- Assess whether concentrated positions can be liquidated cleanly if needed, given current market depth
+- Review and approve exceptions when institutional clients request elevated position limits (with appropriate collateral or risk mitigants)
+
+```
+Position Limit Framework:
+  Tier 1 (retail): Max notional = $500K per market
+  Tier 2 (professional): Max notional = $5M per market (with enhanced margin)
+  Tier 3 (institutional): Negotiated bilaterally with Risk approval
+```
+
+---
+
+### 6. Volatility Monitoring and Dynamic Risk Parameter Adjustment
+
+**Key activities:**
+- Monitor **realised and implied volatility** across all listed assets in real time
+- Adjust margin rates, leverage caps, and OI limits dynamically when volatility exceeds predefined thresholds
+- Implement **volatility-based circuit breakers**: temporarily halt new position opens or reduce maximum leverage for assets in extreme volatility events
+- Track **correlation** between assets: a sudden increase in correlation (e.g., all altcoins moving together) amplifies portfolio-level risk and may require cross-asset margin adjustments
+
+```
+Dynamic Leverage Adjustment:
+  Base max leverage: 20×
+  If 24h realised vol > 2× 30-day average:
+    → Reduce max leverage to 10×
+  If 24h realised vol > 4× 30-day average:
+    → Reduce max leverage to 5×; halt new opens > 5× leverage
+```
+
+---
+
+### 7. New Product Risk Review and Approval
+
+Before the exchange lists a new perpetual, option, token, or structured product, Trading Risk must sign off.
+
+**Key activities:**
+- Assess the **liquidity profile** of the underlying asset: spot volume, order book depth, number of venues, bid-ask spread
+- Determine initial **margin rates, leverage caps, and OI limits** appropriate for the asset's risk profile
+- Evaluate **oracle risk**: are reliable, manipulation-resistant price feeds available?
+- Model stress scenarios specific to the new product
+- Define **delisting criteria**: under what conditions would the product be halted or removed?
+- Produce a **Product Risk Assessment (PRA)** document for approval by the Head of Risk and CRO
+
+---
+
+### 8. Stress Testing and Scenario Analysis
+
+**Key activities:**
+- Run **regular stress tests** (daily/weekly) simulating extreme market scenarios:
+  - Historical scenarios: March 2020 COVID crash (-50% in 48h), May 2021 crypto crash (-40% BTC in 24h), LUNA collapse (near-100% in 72h)
+  - Hypothetical scenarios: stablecoin depeg, exchange hack rumour, regulatory ban announcement
+- Stress test the **insurance fund sufficiency**: would the IF survive the scenario without ADL?
+- Stress test **liquidation engine capacity**: can the engine process the volume of liquidations triggered in the scenario within required timeframes?
+- Report findings to senior management; recommend parameter changes if stress tests reveal vulnerabilities
+
+---
+
+### 9. Client Risk Assessment and Onboarding
+
+**Key activities:**
+- Assess the risk profile of new institutional clients requesting elevated leverage, larger position limits, or prime brokerage services
+- Review client trading history, business model, and risk management practices
+- Set client-specific risk limits in the trading system
+- Periodically re-assess existing clients: review whether their current limits remain appropriate given observed trading behaviour
+- Coordinate with Compliance on KYC/KYB and AML assessment (joint review for high-risk clients)
+
+---
+
+### 10. Risk Model Development and Validation
+
+**Key activities:**
+- Develop and maintain **quantitative risk models**: margin models, VaR models, stress test models, liquidation impact models
+- **Back-test** models against historical data to validate accuracy
+- **Independently validate** models built by the Quant team (four-eyes principle on all models used in production)
+- Identify model weaknesses and propose improvements (e.g., switching from parametric VaR to historical simulation for fat-tailed assets)
+- Document models fully for regulatory and audit purposes
+
+---
+
+### 11. Incident Response and Post-Mortem
+
+When a risk event occurs (e.g., large liquidation cascade, IF drawdown, trading halt, client default), the Trading Risk Specialist leads or participates in the response.
+
+**Key activities:**
+- Contain the incident: halt trading if necessary, freeze affected accounts, activate ADL
+- Communicate with senior management and, if necessary, regulators and affected clients
+- Conduct a **post-mortem analysis**: what happened, why, what failed in the risk framework, what should change
+- Update risk parameters and processes to prevent recurrence
+- Document the incident for regulatory reporting if required
+
+**Notable industry reference incidents for study:**
+- FTX collapse (2022): inadequate margin controls, related-party exposure, IF fiction
+- Binance LUNA liquidation cascade (May 2022): OI concentration, insurance fund stress
+- BitMEX .BXBT index manipulation (2019): oracle risk, thin spot market
+- 3AC default (2022): counterparty credit risk, bilateral lending exposure
+
+---
+
+### 12. Regulatory Capital and Risk Reporting
+
+At exchanges operating under regulated frameworks (MiCA CASP licence, FCA registration, MAS licence, etc.):
+
+**Key activities:**
+- Calculate and report **regulatory capital requirements**: under MiCA, CASPs must hold own funds of at least the higher of (i) a fixed minimum or (ii) a % of fixed overheads
+- Prepare periodic risk reports for the board, Risk Committee, and regulators
+- Maintain **risk appetite statement** (RAS) and ensure day-to-day metrics are within board-approved limits
+- Support external auditors and regulatory examiners during reviews
+
+---
+
+## Key Metrics the Specialist Tracks
+
+| Metric | Frequency | Purpose |
+|---|---|---|
+| Total margin at risk | Real-time | Overall exchange credit exposure |
+| Accounts in pre-liquidation zone | Real-time | Imminent liquidation warning |
+| Insurance Fund balance ($ and % of OI) | Real-time | Solvency buffer adequacy |
+| ADL trigger count | Daily | Frequency of last-resort loss sharing |
+| Liquidation shortfall rate | Daily | IF burn efficiency |
+| Market-level OI skew | Real-time | Directional pool exposure |
+| Volatility regime (realised vs. baseline) | Hourly | Dynamic parameter triggers |
+| Largest single account exposure (% of OI) | Real-time | Concentration tail risk |
+| Stress test IF coverage ratio | Weekly | Scenario-based solvency |
+| Margin call response rate | Daily | Client operational risk |
+
+---
+
+## CEX Trading Risk Specialist vs. DEX Risk Analyst: Key Differences
+
+| Dimension | CEX Trading Risk Specialist | DEX Risk Analyst |
+|---|---|---|
+| **Counterparty** | Exchange itself (holds client funds, is the counterparty to margin) | LP pool / vault (smart contract is the counterparty) |
+| **Client Relationship** | Direct — can freeze accounts, issue margin calls, contact clients | None — protocol is permissionless; no client identification |
+| **Liquidation Control** | Full control of liquidation engine and parameters | Can tune smart contract parameters via governance |
+| **Data Access** | Full internal database: KYC, trade history, account balances | On-chain data only (pseudonymous, public) |
+| **Oracle Dependency** | In-house price feeds + external aggregation; can override | Entirely dependent on external oracles (Pyth, Chainlink) |
+| **Regulatory Capital** | Required under MiCA, FCA, MAS, SEC frameworks | Not yet formally required for most DeFi protocols |
+| **Intervention Speed** | Can act in milliseconds (centralised system) | Governance changes take hours to days |
+| **AML Obligations** | Direct VASP obligations (KYC, TFR, SAR filing) | Limited/none for permissionless protocols (evolving under MiCA) |
+
+---
+
+## Required Skills and Qualifications
+
+### Quantitative
+- Strong statistics and probability: VaR, Expected Shortfall, stress testing, Monte Carlo simulation
+- Derivatives pricing fundamentals: options Greeks, perpetual funding mechanics, mark-to-market
+- Financial modelling in Python or R: pandas, NumPy, scipy for risk calculations
+- SQL for querying trading databases
+
+### Domain Knowledge
+- Deep understanding of crypto derivatives: perpetuals, options, inverse vs. linear contracts, funding rates
+- Margin mechanics: initial margin, maintenance margin, portfolio margin, cross vs. isolated
+- Liquidation mechanics: liquidation cascade dynamics, ADL, insurance fund design
+- Market microstructure: order book depth, slippage, bid-ask spread and their impact on liquidation
+
+### Operational
+- Ability to work in a fast-paced, 24/7 environment with on-call responsibilities
+- Clear communication under pressure (incident response requires rapid, accurate updates to senior management)
+- Regulatory awareness: MiCA, MiFID II, local VASP frameworks in relevant jurisdictions
+- Experience with risk management platforms (Imagine, Murex, or proprietary exchange risk systems)
+
+---
+
+## Summary: Scope at a Glance
+
+| Scope Area | Core Output |
+|---|---|
+| Margin framework | Calibrated IM/MM rates per asset and leverage tier |
+| Liquidation oversight | Functioning liquidation engine; minimal bad debt |
+| Insurance fund management | IF adequately funded; stress-tested |
+| Real-time monitoring | 24/7 alert coverage; rapid incident response |
+| Position limits | Concentration risk controlled; large positions managed |
+| Volatility management | Dynamic parameter adjustments in volatile regimes |
+| New product approval | Risk-assessed PRA for every new listing |
+| Stress testing | Regular scenarios; IF sufficiency validated |
+| Client risk | Institutional limits set; periodic re-assessment |
+| Model development | Accurate, back-tested, documented risk models |
+| Incident response | Rapid containment; thorough post-mortem |
+| Regulatory reporting | Capital requirements met; board/regulator reports delivered |
