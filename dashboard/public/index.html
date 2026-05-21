@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitget Futures Monitor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <h1>Bitget Futures Monitor</h1>
+      <span class="subtitle">USDT-M Perpetual Contracts &middot; Real-Time</span>
+    </div>
+    <div class="header-right">
+      <div class="status" id="ws-status">
+        <span class="dot"></span>
+        <span class="label">Connecting</span>
+      </div>
+      <div class="last-update" id="last-update"></div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search symbol..." autocomplete="off" />
+    <select id="sort-by">
+      <option value="usdtVolume">Volume (USDT)</option>
+      <option value="changeUtc24h">24h Change %</option>
+      <option value="priceDeltaPct">Tick Change %</option>
+      <option value="fundingRate">Funding Rate</option>
+      <option value="holdingAmount">Open Interest</option>
+      <option value="symbol">Symbol</option>
+    </select>
+    <select id="sort-dir">
+      <option value="desc">Descending</option>
+      <option value="asc">Ascending</option>
+    </select>
+    <label class="toggle">
+      <input type="checkbox" id="flash-toggle" checked />
+      <span>Flash alerts</span>
+    </label>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="ticker-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th class="sortable" data-key="symbol">Symbol</th>
+          <th class="sortable" data-key="lastPr">Price</th>
+          <th>Spark</th>
+          <th class="sortable" data-key="priceDeltaPct">Tick &Delta;</th>
+          <th class="sortable" data-key="changeUtc24h">24h %</th>
+          <th class="sortable" data-key="high24h">24h High</th>
+          <th class="sortable" data-key="low24h">24h Low</th>
+          <th class="sortable" data-key="usdtVolume">Vol (USDT)</th>
+          <th class="sortable" data-key="holdingAmount">Open Interest</th>
+          <th class="sortable" data-key="fundingRate">Funding</th>
+          <th class="sortable" data-key="indexPrice">Index</th>
+          <th class="sortable" data-key="markPrice">Mark</th>
+          <th>Spread</th>
+        </tr>
+      </thead>
+      <tbody id="ticker-body"></tbody>
+    </table>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
